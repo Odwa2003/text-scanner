@@ -8,6 +8,8 @@ const CameraCapture: React.FC = () => {
   const [ocrText, setOcrText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [showScanBox, setShowScanBox] = useState<boolean>(true);
+  const [scanBox, setScanBox] = useState({ x: 0.1, y: 0.2, width: 0.8, height: 0.4 }); // Relative to video size
 
   useEffect(() => {
     startCamera();
@@ -70,13 +72,25 @@ const CameraCapture: React.FC = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Calculate crop area based on scan box
+    const cropX = video.videoWidth * scanBox.x;
+    const cropY = video.videoHeight * scanBox.y;
+    const cropWidth = video.videoWidth * scanBox.width;
+    const cropHeight = video.videoHeight * scanBox.height;
+
+    // Set canvas to cropped size
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.drawImage(video, 0, 0);
+    // Draw only the cropped portion
+    ctx.drawImage(
+      video,
+      cropX, cropY, cropWidth, cropHeight,  // Source rectangle
+      0, 0, cropWidth, cropHeight            // Destination rectangle
+    );
 
     const processedImg = preprocessImage(canvas);
     runOCR(processedImg);
@@ -101,33 +115,103 @@ const CameraCapture: React.FC = () => {
   };
 
   return (
-    <div style={{ textAlign: "center" }}>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ width: "100%", maxWidth: "420px" }}
-      />
+    <div style={{ textAlign: "center", padding: "20px" }}>
+      <div style={{ position: "relative", display: "inline-block", maxWidth: "420px", width: "100%" }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ width: "100%", display: "block", borderRadius: "8px" }}
+        />
+        
+        {showScanBox && (
+          <div
+            style={{
+              position: "absolute",
+              left: `${scanBox.x * 100}%`,
+              top: `${scanBox.y * 100}%`,
+              width: `${scanBox.width * 100}%`,
+              height: `${scanBox.height * 100}%`,
+              border: "3px solid #00ff00",
+              boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
+              pointerEvents: "none",
+              boxSizing: "border-box"
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                color: "#00ff00",
+                fontSize: "14px",
+                fontWeight: "bold",
+                textShadow: "0 0 4px black",
+                pointerEvents: "none"
+              }}
+            >
+              Align text here
+            </div>
+          </div>
+        )}
+      </div>
 
-      <button onClick={takePhoto} disabled={loading}>
-        📸 Capture & Scan
-      </button>
+      <div style={{ marginTop: "16px", display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+        <button 
+          onClick={takePhoto} 
+          disabled={loading}
+          style={{
+            padding: "12px 24px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            borderRadius: "8px",
+            border: "none",
+            background: loading ? "#ccc" : "#007bff",
+            color: "white",
+            cursor: loading ? "not-allowed" : "pointer"
+          }}
+        >
+          📸 Capture & Scan
+        </button>
+        
+        <button 
+          onClick={() => setShowScanBox(!showScanBox)}
+          style={{
+            padding: "12px 24px",
+            fontSize: "16px",
+            borderRadius: "8px",
+            border: "2px solid #007bff",
+            background: "white",
+            color: "#007bff",
+            cursor: "pointer"
+          }}
+        >
+          {showScanBox ? "Hide" : "Show"} Scan Box
+        </button>
+      </div>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {loading && <p>🔍 Scanning image…</p>}
+      {loading && <p style={{ fontSize: "16px", color: "#666" }}>🔍 Scanning image…</p>}
 
       {ocrText && (
-        <div style={{ marginTop: "16px" }}>
+        <div style={{ marginTop: "16px", textAlign: "left", maxWidth: "420px", margin: "16px auto" }}>
           <h4>Extracted Text</h4>
-          <pre style={{ textAlign: "left", whiteSpace: "pre-wrap" }}>
+          <pre style={{ 
+            whiteSpace: "pre-wrap", 
+            background: "#f5f5f5", 
+            padding: "12px", 
+            borderRadius: "6px",
+            fontSize: "14px"
+          }}>
             {ocrText}
           </pre>
         </div>
       )}
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: "red", marginTop: "16px" }}>{error}</p>}
     </div>
   );
 };
