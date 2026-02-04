@@ -9,6 +9,7 @@ const CameraCapture: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showScanBox, setShowScanBox] = useState<boolean>(true);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const scanBox = { x: 0.1, y: 0.2, width: 0.8, height: 0.4 }; // Relative to video size
 
   useEffect(() => {
@@ -72,11 +73,15 @@ const CameraCapture: React.FC = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
+    console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+
     // Calculate crop area based on scan box
     const cropX = video.videoWidth * scanBox.x;
     const cropY = video.videoHeight * scanBox.y;
     const cropWidth = video.videoWidth * scanBox.width;
     const cropHeight = video.videoHeight * scanBox.height;
+
+    console.log('Crop area:', { cropX, cropY, cropWidth, cropHeight });
 
     // Set canvas to cropped size
     canvas.width = cropWidth;
@@ -91,6 +96,10 @@ const CameraCapture: React.FC = () => {
       cropX, cropY, cropWidth, cropHeight,  // Source rectangle
       0, 0, cropWidth, cropHeight            // Destination rectangle
     );
+
+    // Show the captured image before preprocessing
+    const capturedImg = canvas.toDataURL("image/png");
+    setCapturedImage(capturedImg);
 
     const processedImg = preprocessImage(canvas);
     runOCR(processedImg);
@@ -195,6 +204,21 @@ const CameraCapture: React.FC = () => {
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {loading && <p style={{ fontSize: "16px", color: "#666" }}>🔍 Scanning image…</p>}
+
+      {capturedImage && (
+        <div style={{ marginTop: "16px" }}>
+          <h4>Captured Area (Cropped)</h4>
+          <img 
+            src={capturedImage} 
+            alt="Captured" 
+            style={{ 
+              maxWidth: "100%", 
+              border: "2px solid #007bff", 
+              borderRadius: "8px" 
+            }} 
+          />
+        </div>
+      )}
 
       {ocrText && (
         <div style={{ marginTop: "16px", textAlign: "left", maxWidth: "420px", margin: "16px auto" }}>
