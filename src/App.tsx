@@ -228,7 +228,8 @@ const CameraCapture: React.FC = () => {
             background: "#f5f5f5", 
             padding: "12px", 
             borderRadius: "6px",
-            fontSize: "14px"
+            fontSize: "14px",
+            color: "#000000"
           }}>
             {ocrText}
           </pre>
