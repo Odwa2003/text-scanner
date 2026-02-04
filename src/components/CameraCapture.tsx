@@ -5,7 +5,6 @@ const CameraCapture: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [image, setImage] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +35,7 @@ const CameraCapture: React.FC = () => {
     stream?.getTracks().forEach(track => track.stop());
   };
 
-  const takePhoto = (): void => {
+  const takePhotoAndScan = async (): Promise<void> => {
     if (!videoRef.current || !canvasRef.current) return;
 
     const video = videoRef.current;
@@ -50,24 +49,24 @@ const CameraCapture: React.FC = () => {
 
     ctx.drawImage(video, 0, 0);
 
-    const img = canvas.toDataURL("image/png");
-    setImage(img);
-    runOCR(img);
+    const imageData: string = canvas.toDataURL("image/png");
+    await runOCR(imageData);
   };
 
-  const runOCR = async (img: string): Promise<void> => {
+  const runOCR = async (image: string): Promise<void> => {
     setLoading(true);
     setOcrText("");
+    setError(null);
 
     try {
-      const result = await Tesseract.recognize(img, "eng", {
+      const result = await Tesseract.recognize(image, "eng", {
         logger: m => console.log(m)
       });
 
-      setOcrText(result.data.text);
+      setOcrText(result.data.text.trim());
     } catch (err) {
       console.error(err);
-      setError("OCR failed. Try again.");
+      setError("Failed to extract text.");
     } finally {
       setLoading(false);
     }
@@ -83,18 +82,26 @@ const CameraCapture: React.FC = () => {
         style={{ width: "100%", maxWidth: "420px" }}
       />
 
-      <button onClick={takePhoto} disabled={loading}>
-        📸 Capture & Scan
+      <button onClick={takePhotoAndScan} disabled={loading}>
+        📸 Scan Text
       </button>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {loading && <p>🔍 Scanning image…</p>}
+      {loading && <p>🔍 Scanning…</p>}
 
       {ocrText && (
         <div style={{ marginTop: "16px" }}>
-          <h4>Extracted Text</h4>
-          <pre style={{ textAlign: "left", whiteSpace: "pre-wrap" }}>
+          <h4>Scanned Text</h4>
+          <pre
+            style={{
+              textAlign: "left",
+              whiteSpace: "pre-wrap",
+              background: "#f5f5f5",
+              padding: "12px",
+              borderRadius: "6px"
+            }}
+          >
             {ocrText}
           </pre>
         </div>
