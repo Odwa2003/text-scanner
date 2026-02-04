@@ -5,7 +5,6 @@ const CameraCapture: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [image, setImage] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +50,6 @@ const CameraCapture: React.FC = () => {
     ctx.drawImage(video, 0, 0);
 
     const img = canvas.toDataURL("image/png");
-    setImage(img);
     runOCR(img);
   };
 
