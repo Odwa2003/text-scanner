@@ -35,6 +35,35 @@ const CameraCapture: React.FC = () => {
     stream?.getTracks().forEach(track => track.stop());
   };
 
+  const preprocessImage = (canvas: HTMLCanvasElement): string => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas.toDataURL("image/png");
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Convert to grayscale and enhance contrast
+    for (let i = 0; i < data.length; i += 4) {
+      // Grayscale conversion
+      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      
+      // Increase contrast (adjust threshold)
+      const contrast = 1.5;
+      const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+      const enhanced = factor * (gray - 128) + 128;
+      
+      // Apply threshold for better text detection
+      const threshold = enhanced > 128 ? 255 : 0;
+      
+      data[i] = threshold;     // R
+      data[i + 1] = threshold; // G
+      data[i + 2] = threshold; // B
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL("image/png");
+  };
+
   const takePhoto = (): void => {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -49,8 +78,8 @@ const CameraCapture: React.FC = () => {
 
     ctx.drawImage(video, 0, 0);
 
-    const img = canvas.toDataURL("image/png");
-    runOCR(img);
+    const processedImg = preprocessImage(canvas);
+    runOCR(processedImg);
   };
 
   const runOCR = async (img: string): Promise<void> => {
