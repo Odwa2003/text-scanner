@@ -9,7 +9,7 @@ const CameraCapture: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showScanBox, setShowScanBox] = useState<boolean>(true);
-  const [scanBox, setScanBox] = useState({ x: 0.1, y: 0.2, width: 0.8, height: 0.4 }); // Relative to video size
+  const scanBox = { x: 0.1, y: 0.2, width: 0.8, height: 0.4 }; // Relative to video size
 
   useEffect(() => {
     startCamera();
