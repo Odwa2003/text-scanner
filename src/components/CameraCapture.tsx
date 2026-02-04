@@ -1,43 +1,39 @@
 import { useEffect, useRef, useState } from "react";
+import Tesseract from "tesseract.js";
 
 const CameraCapture: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [image, setImage] = useState<string | null>(null);
+  const [ocrText, setOcrText] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     startCamera();
-
-    return () => {
-      stopCamera();
-    };
+    return () => stopCamera();
   }, []);
 
   const startCamera = async (): Promise<void> => {
     try {
-      const stream: MediaStream =
-        await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false
+      });
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-    } catch (err) {
-      console.error(err);
-      setError("Unable to access camera. Please allow camera permissions.");
+    } catch {
+      setError("Camera access denied.");
     }
   };
 
   const stopCamera = (): void => {
     const stream = videoRef.current?.srcObject as MediaStream | null;
-    if (!stream) return;
-
-    stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+    stream?.getTracks().forEach(track => track.stop());
   };
 
   const takePhoto = (): void => {
@@ -54,8 +50,27 @@ const CameraCapture: React.FC = () => {
 
     ctx.drawImage(video, 0, 0);
 
-    const imageData: string = canvas.toDataURL("image/png");
-    setImage(imageData);
+    const img = canvas.toDataURL("image/png");
+    setImage(img);
+    runOCR(img);
+  };
+
+  const runOCR = async (img: string): Promise<void> => {
+    setLoading(true);
+    setOcrText("");
+
+    try {
+      const result = await Tesseract.recognize(img, "eng", {
+        logger: m => console.log(m)
+      });
+
+      setOcrText(result.data.text);
+    } catch (err) {
+      console.error(err);
+      setError("OCR failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -68,24 +83,24 @@ const CameraCapture: React.FC = () => {
         style={{ width: "100%", maxWidth: "420px" }}
       />
 
-      <div style={{ marginTop: "12px" }}>
-        <button onClick={takePhoto}>📸 Capture</button>
-      </div>
+      <button onClick={takePhoto} disabled={loading}>
+        📸 Capture & Scan
+      </button>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {loading && <p>🔍 Scanning image…</p>}
 
-      {image && (
+      {ocrText && (
         <div style={{ marginTop: "16px" }}>
-          <h4>Captured Image</h4>
-          <img
-            src={image}
-            alt="Captured"
-            style={{ width: "100%", maxWidth: "420px" }}
-          />
+          <h4>Extracted Text</h4>
+          <pre style={{ textAlign: "left", whiteSpace: "pre-wrap" }}>
+            {ocrText}
+          </pre>
         </div>
       )}
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
 };
