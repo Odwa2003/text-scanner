@@ -225,11 +225,11 @@ const CameraCapture: React.FC = () => {
           <h4>Extracted Text</h4>
           <pre style={{ 
             whiteSpace: "pre-wrap", 
-            background: "#f5f5f5", 
+            background: "#ffffff", 
             padding: "12px", 
             borderRadius: "6px",
             fontSize: "14px",
-            color: "#000000"
+            color: "#ff0202"
           }}>
             {ocrText}
           </pre>
