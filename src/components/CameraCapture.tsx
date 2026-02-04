@@ -10,7 +10,7 @@ const CameraCapture: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showScanBox, setShowScanBox] = useState<boolean>(true);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const scanBox = { x: 0.1, y: 0.2, width: 0.8, height: 0.4 }; // Relative to video size
+  const [scanBox, setScanBox] = useState({ x: 0.1, y: 0.2, width: 0.8, height: 0.4 }); // Relative to video size
 
   useEffect(() => {
     startCamera();
@@ -201,6 +201,84 @@ const CameraCapture: React.FC = () => {
           {showScanBox ? "Hide" : "Show"} Scan Box
         </button>
       </div>
+
+      {showScanBox && (
+        <div style={{ marginTop: "16px", maxWidth: "420px", margin: "16px auto", textAlign: "left" }}>
+          <h4 style={{ marginBottom: "8px" }}>Adjust Scan Box Size</h4>
+          
+          <div style={{ marginBottom: "12px" }}>
+            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
+              Width: {Math.round(scanBox.width * 100)}%
+            </label>
+            <input
+              type="range"
+              min="20"
+              max="100"
+              value={scanBox.width * 100}
+              onChange={(e) => setScanBox({ ...scanBox, width: parseInt(e.target.value) / 100 })}
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "12px" }}>
+            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
+              Height: {Math.round(scanBox.height * 100)}%
+            </label>
+            <input
+              type="range"
+              min="10"
+              max="80"
+              value={scanBox.height * 100}
+              onChange={(e) => setScanBox({ ...scanBox, height: parseInt(e.target.value) / 100 })}
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "12px" }}>
+            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
+              Horizontal Position: {Math.round(scanBox.x * 100)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max={100 - scanBox.width * 100}
+              value={scanBox.x * 100}
+              onChange={(e) => setScanBox({ ...scanBox, x: parseInt(e.target.value) / 100 })}
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "12px" }}>
+            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
+              Vertical Position: {Math.round(scanBox.y * 100)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max={100 - scanBox.height * 100}
+              value={scanBox.y * 100}
+              onChange={(e) => setScanBox({ ...scanBox, y: parseInt(e.target.value) / 100 })}
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          <button
+            onClick={() => setScanBox({ x: 0.1, y: 0.2, width: 0.8, height: 0.4 })}
+            style={{
+              padding: "8px 16px",
+              fontSize: "14px",
+              borderRadius: "6px",
+              border: "1px solid #6c757d",
+              background: "white",
+              color: "#6c757d",
+              cursor: "pointer",
+              width: "100%"
+            }}
+          >
+            Reset to Default
+          </button>
+        </div>
+      )}
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
