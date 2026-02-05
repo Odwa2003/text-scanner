@@ -221,6 +221,7 @@ export default function CameraCapture() {
           borderRadius: "5px",
           textAlign: "left",
           border: "2px solid #28a745"
+          
         }}>
           <h3 style={{ marginTop: 0, color: "#28a745" }}>✅ Extracted Text:</h3>
           <pre style={{ 
@@ -229,7 +230,8 @@ export default function CameraCapture() {
             fontFamily: "inherit",
             margin: 0,
             fontSize: "14px",
-            lineHeight: "1.6"
+            lineHeight: "1.6",
+            color:"black"
           }}>
             {extractedText}
           </pre>
