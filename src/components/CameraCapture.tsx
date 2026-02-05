@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Tesseract from "tesseract.js";
 
 export default function CameraCapture() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -6,6 +7,7 @@ export default function CameraCapture() {
   const [image, setImage] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState<number>(0);
 
   useEffect(() => {
     startCamera();
@@ -82,47 +84,23 @@ export default function CameraCapture() {
   const extractText = async (imageData: string) => {
     setIsProcessing(true);
     setExtractedText("");
+    setProgress(0);
 
     try {
-      const base64Data = imageData.split(',')[1];
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "anthropic-version": "2023-06-01"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: "image/jpeg",
-                    data: base64Data
-                  }
-                },
-                {
-                  type: "text",
-                  text: "Extract all text from this image. Return only the text content, nothing else."
-                }
-              ]
+      const result = await Tesseract.recognize(
+        imageData,
+        'eng',
+        {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              setProgress(Math.round(m.progress * 100));
             }
-          ]
-        })
-      });
-
-      const data = await response.json();
+          }
+        }
+      );
       
-      if (data.content && data.content[0] && data.content[0].text) {
-        setExtractedText(data.content[0].text);
-      } else if (data.error) {
-        setExtractedText(`Error: ${data.error.message || 'Failed to extract text'}`);
+      if (result.data.text.trim()) {
+        setExtractedText(result.data.text);
       } else {
         setExtractedText("No text found in image.");
       }
@@ -131,12 +109,14 @@ export default function CameraCapture() {
       setExtractedText("Error extracting text. Please try again.");
     } finally {
       setIsProcessing(false);
+      setProgress(0);
     }
   };
 
   const retakePhoto = () => {
     setImage(null);
     setExtractedText("");
+    setProgress(0);
   };
 
   return (
@@ -213,7 +193,22 @@ export default function CameraCapture() {
           borderRadius: "5px",
           margin: "20px 0"
         }}>
-          <p style={{ margin: 0, color: "#666" }}>🔍 Extracting text...</p>
+          <p style={{ margin: "0 0 10px 0", color: "#666" }}>🔍 Extracting text...</p>
+          <div style={{
+            width: "100%",
+            height: "20px",
+            background: "#e0e0e0",
+            borderRadius: "10px",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              width: `${progress}%`,
+              height: "100%",
+              background: "#007bff",
+              transition: "width 0.3s ease"
+            }} />
+          </div>
+          <p style={{ margin: "10px 0 0 0", color: "#666", fontSize: "14px" }}>{progress}%</p>
         </div>
       )}
 
@@ -232,7 +227,8 @@ export default function CameraCapture() {
             fontFamily: "inherit",
             margin: 0,
             fontSize: "14px",
-            lineHeight: "1.6"
+            lineHeight: "1.6",
+            color:"black"
           }}>
             {extractedText}
           </pre>
