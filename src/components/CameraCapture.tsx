@@ -8,6 +8,8 @@ export default function CameraCapture() {
   const [extractedText, setExtractedText] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<number>(0);
+  const [frameWidth, setFrameWidth] = useState<number>(80);
+  const [frameHeight, setFrameHeight] = useState<number>(60);
 
   useEffect(() => {
     startCamera();
@@ -176,22 +178,62 @@ export default function CameraCapture() {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: "80%",
-            height: "60%",
+            width: `${frameWidth}%`,
+            height: `${frameHeight}%`,
             border: "3px dashed rgba(0, 123, 255, 0.6)",
             borderRadius: "8px",
             pointerEvents: "none",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(0, 0, 0, 0.1)"
+            background: "rgba(0, 0, 0, 0.1)",
+            transition: "width 0.2s ease, height 0.2s ease"
           }}>
-            <span style={{ color: "white", fontSize: "16px", fontWeight: "bold", textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
-              Align text within this frame
+            <span style={{ color: "white", fontSize: "14px", fontWeight: "bold", textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
+              Align text here
             </span>
           </div>
         )}
       </div>
+
+      {/* Frame size controls */}
+      {!image && (
+        <div style={{ 
+          margin: "20px 0", 
+          padding: "15px", 
+          background: "#f8f9fa", 
+          borderRadius: "8px",
+          textAlign: "left"
+        }}>
+          <div style={{ marginBottom: "15px" }}>
+            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", fontSize: "14px" }}>
+              Frame Width: {frameWidth}%
+            </label>
+            <input 
+              type="range" 
+              min="30" 
+              max="95" 
+              value={frameWidth}
+              onChange={(e) => setFrameWidth(Number(e.target.value))}
+              style={{ width: "100%" }}
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold", fontSize: "14px" }}>
+              Frame Height: {frameHeight}%
+            </label>
+            <input 
+              type="range" 
+              min="20" 
+              max="90" 
+              value={frameHeight}
+              onChange={(e) => setFrameHeight(Number(e.target.value))}
+              style={{ width: "100%" }}
+            />
+          </div>
+        </div>
+      )}
 
       {image && (
         <img 
