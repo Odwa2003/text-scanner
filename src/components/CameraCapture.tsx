@@ -335,7 +335,8 @@ export default function CameraCapture() {
             fontFamily: "inherit",
             margin: 0,
             fontSize: "14px",
-            lineHeight: "1.6"
+            lineHeight: "1.6",
+            color:"black"
           }}>
             {extractedText}
           </pre>
