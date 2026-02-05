@@ -119,17 +119,23 @@ export default function CameraCapture() {
     setProgress(0);
 
     try {
-      const result = await Tesseract.recognize(
-        imageData,
-        'eng',
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              setProgress(Math.round(m.progress * 100));
-            }
+      // Create worker with character whitelist
+      const worker = await Tesseract.createWorker('eng', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            setProgress(Math.round(m.progress * 100));
           }
         }
-      );
+      });
+
+      // Set parameters to only recognize letters, numbers, and spaces
+      await worker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ',
+      });
+
+      const result = await worker.recognize(imageData);
+      
+      await worker.terminate();
       
       if (result.data.text.trim()) {
         setExtractedText(result.data.text);
@@ -329,8 +335,7 @@ export default function CameraCapture() {
             fontFamily: "inherit",
             margin: 0,
             fontSize: "14px",
-            lineHeight: "1.6",
-            color:"black"
+            lineHeight: "1.6"
           }}>
             {extractedText}
           </pre>
