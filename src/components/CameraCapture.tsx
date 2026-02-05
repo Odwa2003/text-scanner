@@ -90,6 +90,7 @@ export default function CameraCapture() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01"
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
@@ -120,6 +121,8 @@ export default function CameraCapture() {
       
       if (data.content && data.content[0] && data.content[0].text) {
         setExtractedText(data.content[0].text);
+      } else if (data.error) {
+        setExtractedText(`Error: ${data.error.message || 'Failed to extract text'}`);
       } else {
         setExtractedText("No text found in image.");
       }
@@ -221,7 +224,6 @@ export default function CameraCapture() {
           borderRadius: "5px",
           textAlign: "left",
           border: "2px solid #28a745"
-          
         }}>
           <h3 style={{ marginTop: 0, color: "#28a745" }}>✅ Extracted Text:</h3>
           <pre style={{ 
@@ -230,8 +232,7 @@ export default function CameraCapture() {
             fontFamily: "inherit",
             margin: 0,
             fontSize: "14px",
-            lineHeight: "1.6",
-            color:"black"
+            lineHeight: "1.6"
           }}>
             {extractedText}
           </pre>
