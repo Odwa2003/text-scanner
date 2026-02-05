@@ -1,325 +1,89 @@
 import { useEffect, useRef, useState } from "react";
-import Tesseract from "tesseract.js";
 
-const CameraCapture: React.FC = () => {
+export default function CameraCapture() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  const [ocrText, setOcrText] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showScanBox, setShowScanBox] = useState<boolean>(true);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [scanBox, setScanBox] = useState({ x: 0.1, y: 0.2, width: 0.8, height: 0.4 }); // Relative to video size
+  const [image, setImage] = useState<string | null>(null);
 
   useEffect(() => {
     startCamera();
     return () => stopCamera();
   }, []);
 
-  const startCamera = async (): Promise<void> => {
+  const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: { facingMode: { exact: "environment" } },
         audio: false
       });
-
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        try {
+          (videoRef.current as HTMLVideoElement).srcObject = stream;
+        } catch (e) {
+          // Fallback for older browsers
+          // @ts-ignore
+          videoRef.current.src = URL.createObjectURL(stream);
+        }
       }
-    } catch {
-      setError("Camera access denied.");
+    } catch (err) {
+      console.error("Camera error:", err);
     }
   };
 
-  const stopCamera = (): void => {
-    const stream = videoRef.current?.srcObject as MediaStream | null;
-    stream?.getTracks().forEach(track => track.stop());
-  };
-
-  const preprocessImage = (canvas: HTMLCanvasElement): string => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return canvas.toDataURL("image/png");
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    // Convert to grayscale and enhance contrast
-    for (let i = 0; i < data.length; i += 4) {
-      // Grayscale conversion
-      const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      
-      // Increase contrast (adjust threshold)
-      const contrast = 1.5;
-      const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-      const enhanced = factor * (gray - 128) + 128;
-      
-      // Apply threshold for better text detection
-      const threshold = enhanced > 128 ? 255 : 0;
-      
-      data[i] = threshold;     // R
-      data[i + 1] = threshold; // G
-      data[i + 2] = threshold; // B
+  const stopCamera = () => {
+    const stream = (videoRef.current && (videoRef.current.srcObject as MediaStream | null)) || null;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
     }
-
-    ctx.putImageData(imageData, 0, 0);
-    return canvas.toDataURL("image/png");
+    if (videoRef.current) {
+      try {
+        (videoRef.current as HTMLVideoElement).srcObject = null;
+      } catch {
+        // @ts-ignore
+        videoRef.current.src = "";
+      }
+    }
   };
 
-  const takePhotoAndScan = async (): Promise<void> => {
-    if (!videoRef.current || !canvasRef.current) return;
-
+  const takePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    if (!video || !canvas) return;
 
-    console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+    const width = (video.videoWidth && video.videoWidth > 0) ? video.videoWidth : video.clientWidth;
+    const height = (video.videoHeight && video.videoHeight > 0) ? video.videoHeight : video.clientHeight;
 
-    // Calculate crop area based on scan box
-    const cropX = video.videoWidth * scanBox.x;
-    const cropY = video.videoHeight * scanBox.y;
-    const cropWidth = video.videoWidth * scanBox.width;
-    const cropHeight = video.videoHeight * scanBox.height;
-
-    console.log('Crop area:', { cropX, cropY, cropWidth, cropHeight });
-
-    // Set canvas to cropped size
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
+    canvas.width = width;
+    canvas.height = height;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Draw only the cropped portion
-    ctx.drawImage(
-      video,
-      cropX, cropY, cropWidth, cropHeight,  // Source rectangle
-      0, 0, cropWidth, cropHeight            // Destination rectangle
-    );
+    ctx.drawImage(video, 0, 0, width, height);
 
-    // Show the captured image before preprocessing
-    const capturedImg = canvas.toDataURL("image/png");
-    setCapturedImage(capturedImg);
-
-    const processedImg = preprocessImage(canvas);
-    await runOCR(processedImg);
-  };
-
-  const runOCR = async (image: string): Promise<void> => {
-    setLoading(true);
-    setOcrText("");
-    setError(null);
-
-    try {
-      const result = await Tesseract.recognize(image, "eng", {
-        logger: m => console.log(m)
-      });
-
-      setOcrText(result.data.text.trim());
-    } catch (err) {
-      console.error(err);
-      setError("Failed to extract text.");
-    } finally {
-      setLoading(false);
-    }
+    const imageData = canvas.toDataURL("image/png");
+    setImage(imageData);
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <div style={{ position: "relative", display: "inline-block", maxWidth: "420px", width: "100%" }}>
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          style={{ width: "100%", display: "block", borderRadius: "8px" }}
-        />
-        
-        {showScanBox && (
-          <div
-            style={{
-              position: "absolute",
-              left: `${scanBox.x * 100}%`,
-              top: `${scanBox.y * 100}%`,
-              width: `${scanBox.width * 100}%`,
-              height: `${scanBox.height * 100}%`,
-              border: "3px solid #00ff00",
-              boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
-              pointerEvents: "none",
-              boxSizing: "border-box"
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                color: "#00ff00",
-                fontSize: "14px",
-                fontWeight: "bold",
-                textShadow: "0 0 4px black",
-                pointerEvents: "none"
-              }}
-            >
-              Align text here
-            </div>
-          </div>
-        )}
-      </div>
+    <div style={{ textAlign: "center" }}>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        style={{ width: "100%", maxWidth: "400px" }}
+      />
 
-      <div style={{ marginTop: "16px", display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
-        <button 
-          onClick={takePhotoAndScan} 
-          disabled={loading}
-          style={{
-            padding: "12px 24px",
-            fontSize: "16px",
-            fontWeight: "bold",
-            borderRadius: "8px",
-            border: "none",
-            background: loading ? "#ccc" : "#007bff",
-            color: "white",
-            cursor: loading ? "not-allowed" : "pointer"
-          }}
-        >
-          📸 Scan Text
-        </button>
-        
-        <button 
-          onClick={() => setShowScanBox(!showScanBox)}
-          style={{
-            padding: "12px 24px",
-            fontSize: "16px",
-            borderRadius: "8px",
-            border: "2px solid #007bff",
-            background: "white",
-            color: "#007bff",
-            cursor: "pointer"
-          }}
-        >
-          {showScanBox ? "Hide" : "Show"} Scan Box
-        </button>
-      </div>
-
-      {showScanBox && (
-        <div style={{ marginTop: "16px", maxWidth: "420px", margin: "16px auto", textAlign: "left" }}>
-          <h4 style={{ marginBottom: "8px" }}>Adjust Scan Box Size</h4>
-          
-          <div style={{ marginBottom: "12px" }}>
-            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
-              Width: {Math.round(scanBox.width * 100)}%
-            </label>
-            <input
-              type="range"
-              min="20"
-              max="100"
-              value={scanBox.width * 100}
-              onChange={(e) => setScanBox({ ...scanBox, width: parseInt(e.target.value) / 100 })}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "12px" }}>
-            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
-              Height: {Math.round(scanBox.height * 100)}%
-            </label>
-            <input
-              type="range"
-              min="10"
-              max="80"
-              value={scanBox.height * 100}
-              onChange={(e) => setScanBox({ ...scanBox, height: parseInt(e.target.value) / 100 })}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "12px" }}>
-            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
-              Horizontal Position: {Math.round(scanBox.x * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max={100 - scanBox.width * 100}
-              value={scanBox.x * 100}
-              onChange={(e) => setScanBox({ ...scanBox, x: parseInt(e.target.value) / 100 })}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "12px" }}>
-            <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
-              Vertical Position: {Math.round(scanBox.y * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max={100 - scanBox.height * 100}
-              value={scanBox.y * 100}
-              onChange={(e) => setScanBox({ ...scanBox, y: parseInt(e.target.value) / 100 })}
-              style={{ width: "100%" }}
-            />
-          </div>
-
-          <button
-            onClick={() => setScanBox({ x: 0.1, y: 0.2, width: 0.8, height: 0.4 })}
-            style={{
-              padding: "8px 16px",
-              fontSize: "14px",
-              borderRadius: "6px",
-              border: "1px solid #6c757d",
-              background: "white",
-              color: "#6c757d",
-              cursor: "pointer",
-              width: "100%"
-            }}
-          >
-            Reset to Default
-          </button>
-        </div>
-      )}
+      <button onClick={takePhoto}>📸 Capture</button>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {loading && <p style={{ fontSize: "16px", color: "#666" }}>🔍 Scanning…</p>}
-
-      {capturedImage && (
-        <div style={{ marginTop: "16px" }}>
-          <h4>Captured Area (Cropped)</h4>
-          <img 
-            src={capturedImage} 
-            alt="Captured" 
-            style={{ 
-              maxWidth: "100%", 
-              border: "2px solid #007bff", 
-              borderRadius: "8px" 
-            }} 
-          />
+      {image && (
+        <div>
+          <h4>Captured Image:</h4>
+          <img src={image} alt="Captured" style={{ width: "100%" }} />
         </div>
       )}
-
-      {ocrText && (
-        <div style={{ marginTop: "16px", textAlign: "left", maxWidth: "420px", margin: "16px auto" }}>
-          <h4>Scanned Text</h4>
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              background: "#f5f5f5",
-              padding: "12px",
-              borderRadius: "6px",
-              fontSize: "14px",
-              color: "#000000"
-            }}
-          >
-            {ocrText}
-          </pre>
-        </div>
-      )}
-
-      {error && <p style={{ color: "red", marginTop: "16px" }}>{error}</p>}
     </div>
   );
-};
-
-export default CameraCapture;
+}
