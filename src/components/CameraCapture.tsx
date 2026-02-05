@@ -130,7 +130,7 @@ export default function CameraCapture() {
 
       // Set parameters to only recognize letters, numbers, and spaces
       await worker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ',
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-0123456789 ',
       });
 
       const result = await worker.recognize(imageData);
