@@ -13,14 +13,18 @@ export default function CameraCapture() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: "environment" } },
+        video: { 
+          facingMode: { exact: "environment" },
+          width: { ideal: 1920 },  // Request higher resolution
+          height: { ideal: 1080 },
+          aspectRatio: { ideal: 16/9 }
+        },
         audio: false
       });
       if (videoRef.current) {
         try {
           (videoRef.current as HTMLVideoElement).srcObject = stream;
         } catch (e) {
-          // Fallback for older browsers
           // @ts-ignore
           videoRef.current.src = URL.createObjectURL(stream);
         }
@@ -50,18 +54,28 @@ export default function CameraCapture() {
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
 
-    const width = (video.videoWidth && video.videoWidth > 0) ? video.videoWidth : video.clientWidth;
-    const height = (video.videoHeight && video.videoHeight > 0) ? video.videoHeight : video.clientHeight;
+    // Use actual video dimensions for full quality
+    const width = video.videoWidth || video.clientWidth;
+    const height = video.videoHeight || video.clientHeight;
 
     canvas.width = width;
     canvas.height = height;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { 
+      alpha: false,  // Disable alpha channel for better performance
+      willReadFrequently: false 
+    });
     if (!ctx) return;
 
+    // Enable high-quality image smoothing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    // Draw the image
     ctx.drawImage(video, 0, 0, width, height);
 
-    const imageData = canvas.toDataURL("image/png");
+    // Use JPEG with high quality (0.95 = 95% quality)
+    const imageData = canvas.toDataURL("image/jpeg", 0.95);
     setImage(imageData);
   };
 
@@ -81,7 +95,7 @@ export default function CameraCapture() {
       {image && (
         <div>
           <h4>Captured Image:</h4>
-          <img src={image} alt="Captured" style={{ width: "100%" }} />
+          <img src={image} alt="Captured" style={{ width: "100%", maxWidth: "400px" }} />
         </div>
       )}
     </div>
