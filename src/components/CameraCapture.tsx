@@ -19,8 +19,8 @@ export default function CameraCapture() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: { exact: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 3840 },  // 4K resolution
+          height: { ideal: 2160 },
           aspectRatio: { ideal: 16/9 }
         },
         audio: false
@@ -53,6 +53,32 @@ export default function CameraCapture() {
     }
   };
 
+  // Image preprocessing for better OCR accuracy
+  const preprocessImage = (canvas: HTMLCanvasElement): string => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas.toDataURL("image/jpeg", 1.0);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Convert to grayscale and increase contrast
+    for (let i = 0; i < data.length; i += 4) {
+      // Grayscale conversion
+      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      
+      // Increase contrast (simple threshold)
+      const threshold = 128;
+      const value = avg > threshold ? 255 : 0;
+      
+      data[i] = value;     // Red
+      data[i + 1] = value; // Green
+      data[i + 2] = value; // Blue
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL("image/jpeg", 1.0);
+  };
+
   const takePhoto = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -74,11 +100,15 @@ export default function CameraCapture() {
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(video, 0, 0, width, height);
 
-    const imageData = canvas.toDataURL("image/jpeg", 0.95);
-    setImage(imageData);
+    // Store original image for display
+    const originalImage = canvas.toDataURL("image/jpeg", 1.0);
+    setImage(originalImage);
     
-    // Automatically extract text after capturing
-    await extractText(imageData);
+    // Preprocess image for OCR
+    const processedImage = preprocessImage(canvas);
+    
+    // Extract text from preprocessed image
+    await extractText(processedImage);
   };
 
   const extractText = async (imageData: string) => {
@@ -120,20 +150,48 @@ export default function CameraCapture() {
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px", maxWidth: "500px", margin: "0 auto" }}>
-      <h2 style={{ marginBottom: "20px" }}>📸 Text Scanner</h2>
+    <div style={{ textAlign: "center", padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+      <h2 style={{ marginBottom: "10px" }}>📸 Text Scanner</h2>
+      <p style={{ fontSize: "14px", color: "#666", marginBottom: "20px" }}>
+        💡 Tips: Hold phone steady, ensure good lighting, and keep text flat & in focus
+      </p>
       
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{ 
-          width: "100%", 
-          borderRadius: "8px",
-          display: image ? "none" : "block",
-          border: "2px solid #ddd"
-        }}
-      />
+      <div style={{ position: "relative", display: "inline-block", width: "100%" }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          style={{ 
+            width: "100%", 
+            borderRadius: "8px",
+            display: image ? "none" : "block",
+            border: "2px solid #ddd"
+          }}
+        />
+        
+        {/* Guideline overlay for better framing */}
+        {!image && (
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "80%",
+            height: "60%",
+            border: "3px dashed rgba(0, 123, 255, 0.6)",
+            borderRadius: "8px",
+            pointerEvents: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0, 0, 0, 0.1)"
+          }}>
+            <span style={{ color: "white", fontSize: "16px", fontWeight: "bold", textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
+              Align text within this frame
+            </span>
+          </div>
+        )}
+      </div>
 
       {image && (
         <img 
@@ -159,7 +217,8 @@ export default function CameraCapture() {
               border: "none",
               background: "#007bff",
               color: "white",
-              fontWeight: "bold"
+              fontWeight: "bold",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
             }}
           >
             📸 Capture & Extract Text
@@ -176,7 +235,8 @@ export default function CameraCapture() {
               border: "none",
               background: isProcessing ? "#ccc" : "#6c757d",
               color: "white",
-              fontWeight: "bold"
+              fontWeight: "bold",
+              boxShadow: isProcessing ? "none" : "0 2px 4px rgba(0,0,0,0.2)"
             }}
           >
             🔄 Retake
@@ -227,8 +287,7 @@ export default function CameraCapture() {
             fontFamily: "inherit",
             margin: 0,
             fontSize: "14px",
-            lineHeight: "1.6",
-            color:"black"
+            lineHeight: "1.6"
           }}>
             {extractedText}
           </pre>
